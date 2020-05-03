@@ -2,3 +2,140 @@
 title: "Nature macs"
 output: html_notebook
 ---
+```{r}
+library(Seurat)
+library(dplyr)
+library(Matrix)
+```
+
+
+```{r}
+healthy1_1.data<-read.tasble(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036808_Control_1_1_Mouse_lung_digital_gene_expression_400.dge.txt"),sep="")
+healthy1_1 <- CreateSeuratObject(counts = healthy1_1.data, project = "healthy1_1", min.cells = 3, min.features = 200)
+healthy1_1$group <- "Healthy"
+
+healthy1_2.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036809_Control_1_2_Mouse_lung_digital_gene_expression_1500.dge.txt"),sep="")
+healthy1_2 <- CreateSeuratObject(counts = healthy1_2.data, project = "healthy1_2", min.cells = 3, min.features = 200)
+healthy1_2$group <- "Healthy"
+
+healthy2.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036810_Control_2_Mouse_lung_digital_gene_expression_4000.dge.txt"),sep="")
+healthy2 <- CreateSeuratObject(counts = healthy2.data, project = "healthy2", min.cells = 3, min.features = 200)
+healthy2$group <- "Healthy"
+
+healthy3.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036811_Control_3_Mouse_lung_digital_gene_expression_6000.dge.txt"),sep="")
+healthy3 <- CreateSeuratObject(counts = healthy3.data, project = "healthy3", min.cells = 3, min.features = 200)
+healthy3$group <- "Healthy"
+
+healthy4.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036812_Control_4_Mouse_lung_digital_gene_expression_4000.dge.txt"),sep="")
+healthy4 <- CreateSeuratObject(counts = healthy4.data, project = "healthy4", min.cells = 3, min.features = 200)
+healthy4$group <- "Healthy"
+
+healthy5.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036813_Control_5_Mouse_lung_digital_gene_expression_4000.dge.txt"),sep="")
+healthy5 <- CreateSeuratObject(counts = healthy5.data, project = "healthy5", min.cells = 3, min.features = 200)
+healthy5$group <- "Healthy"
+
+healthy6.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036814_Control_6_Mouse_lung_digital_gene_expression_6000.dge.txt"),sep="")
+healthy6 <- CreateSeuratObject(counts = healthy6.data, project = "healthy6", min.cells = 3, min.features = 200)
+healthy6$group <- "Healthy"
+```
+
+```{r}
+integratedHealthy.seu <- merge(healthy1_1, y = c(healthy1_2, healthy2, healthy3, healthy4, healthy5, healthy6))
+```
+
+
+```{r}
+bleo1.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036815_Bleo_1_Mouse_lung_digital_gene_expression_4000.dge.txt"),sep="")
+bleo1 <- CreateSeuratObject(counts = bleo1.data, project = "bleo1", min.cells = 3, min.features = 200)
+bleo1$group = "Bleo injection 1"
+
+bleo2.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036816_Bleo_2_Mouse_lung_digital_gene_expression_6000.dge.txt"),sep="")
+bleo2 <- CreateSeuratObject(counts = bleo2.data, project = "bleo2", min.cells = 3, min.features = 200)
+bleo2$group = "Bleo injection 2"
+
+bleo3.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036817_Bleo_3_Mouse_lung_digital_gene_expression_6000.dge.txt"),sep="")
+bleo3 <- CreateSeuratObject(counts = bleo3.data, project = "bleo3", min.cells = 3, min.features = 200)
+bleo3$group = "Bleo injection 3"
+```
+
+```{r}
+integratedBleo.seu <- merge(bleo1, y = c(bleo2, bleo3))
+```
+
+```{r}
+integratedMacs.seu <- merge(integratedHealthy.seu, y = c(integratedBleo.seu))
+```
+
+```{r}
+integratedMacs[["percent.mt"]] <- PercentageFeatureSet(integratedMacs, pattern = "^MT-")
+integratedMacs <- subset(integratedMacs, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+obj.list <- SplitObject(integratedMacs, split.by = "group")
+IntegratedMacs <- SCTransform(integratedMacs, vars.to.regress = "percent.mt", verbose = FALSE)
+```
+
+```{r}
+integratedMacs <- NormalizeData(integratedMacs)
+integratedMacs <- FindVariableFeatures(integratedMacs, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(integratedMacs)
+integratedMacs <- ScaleData(integratedMacs, features = all.genes)
+```
+
+```{r}
+integratedMacs <- RunPCA(integratedMacs)
+integratedMacs <- FindNeighbors(integratedMacs, dims= 1:10)
+integratedMacs <- FindClusters(integratedMacs, resolution = 0.5)
+integratedMacs <- RunTSNE(integratedMacs)
+DimPlot(integratedMacs, reduction = "tsne", group.by = "group")
+```
+
+```{r}
+library(SingleR)
+library(scater)
+library(scRNAseq)
+```
+
+
+```{r}
+immGen <- ImmGenData()
+macsSC <- as.SingleCellExperiment(integratedMacs)
+macsSC <- logNormCounts(CD45SC)
+pred.macsSC <- SingleR(test = macsSC, ref = immGen, labels = immGen$label.main)
+pred.CD45SC
+```
+
+```{r}
+table(pred.CD45SC$labels)
+integratedMacs[["SingleR.labels"]]<- pred.CD45SC$labels
+new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "Neutrophils", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
+names(new.cluster.ids) <- levels(integratedMacs)
+TSNEPlot(integratedMacs, label = TRUE, pt.size = 0.5, group.by = "SingleR.labels") + NoLegend()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
