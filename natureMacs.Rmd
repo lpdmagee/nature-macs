@@ -130,21 +130,12 @@ TSNEPlot(integratedMacs, label = TRUE, pt.size = 0.5, group.by = "SingleR.labels
 justMacs.seu <- integratedMacs[,integratedMacs$SingleR.labels == "Macrophages"]
 ```
 
+
 ```{r}
-justMacs.seu <- NormalizeData(justMacs.seu)
-justMacs.seu <- FindVariableFeatures(justMacs.seu, selection.method = "vst", nfeatures = 2000)
-all.genes2 <- rownames(justMacs.seu)
-justMacs.seu <- ScaleData(justMacs.seu, features = all.genes2)
-justMacs.seu <- RunPCA(justMacs.seu)
-
-# clustering the data
-justMacs.seu <- FindNeighbors(justMacs.seu, dims = 1:10)
-justMacs.seu <- FindClusters(justMacs.seu, resolution = 0.5)
-
-# non-linear dimensional reduction (UMAP or tSNE)
-justMacs.seu <- RunTSNE(justMacs.seu)
-
+DimPlot(justMacs.seu, reduction = "tsne")
 ```
+
+
 
 ```{r}
 saveRDS(justMacs.seu, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/justMacs.rds")
@@ -155,66 +146,16 @@ justMacs.seu <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE1
 ```
 
 ```{r}
-DimPlot(justMacs.seu, reduction = "tsne", group.by = "group")
-#HEEERRRE?
-#TSNEPlot(justMacs.seu, label = TRUE, pt.size = 0.5) + NoLegend()
-```
-
-```{r}
-justMacs.seu
-```
-
-```{r}
-groups <- sample(c("Healthy", "Bleo"), size = 11985, replace = TRUE)
-names(groups) <- colnames(justMacs.seu)
-justMacs.seu <- AddMetaData(object = justMacs.seu, metadata = groups, col.name = "group")
-obj.list <- SplitObject(justMacs.seu, split.by = "group")
-```
-```{r}
-TSNEPlot(justMacs.seu, label = TRUE, pt.size = 0.5) + NoLegend()
-```
-
-```{r}
-reference.list <- obj.list[c("Healthy","Bleo")]
-justMacs.anchors <- FindIntegrationAnchors(object.list = reference.list, dims = 1:10)
-```
-```{r}
-justMacs.integrated <- IntegrateData(anchorset = justMacs.anchors, dims = 1:10)
-```
-```{r}
-library(ggplot2)
-library(cowplot)
-DefaultAssay(justMacs.integrated) <- "integrated"
-justMacs.integrated <- ScaleData(justMacs.integrated, verbose = FALSE)
-justMacs.integrated <- RunPCA(justMacs.integrated, npcs = 30, verbose = FALSE)
-justMacs.integrated <- FindNeighbors(justMacs.integrated, dims = 1:10)
-justMacs.integrated <- FindClusters(justMacs.integrated, dims = 1:10)
-justMacs.integrated <- FindClusters(justMacs.integrated, resolution = 0.5)
-justMacs.integrated <- RunTSNE(justMacs.integrated, reduction = "pca", dims = 1:30)
+justMacs.seu.markers <- FindAllMarkers(justMacs.seu, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25, group.by = "group")
 ```
 
 
 ```{r}
-p1 <- DimPlot(justMacs.integrated, reduction = "tsne", group.by = "group")
-plot_grid(p1)
+justMacs.seu.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
 ```
 ```{r}
-saveRDS(justMacs.seu, file = "/Users/liammagee/Desktop/R stuff/tumorSet/justMacs.rds")
+VlnPlot(justMacs.seu, features = c("Fabp1", "Ear10"), group.by = "group")
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
