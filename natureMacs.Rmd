@@ -96,6 +96,10 @@ integratedMacs <- RunPCA(integratedMacs)
 integratedMacs <- FindNeighbors(integratedMacs, dims= 1:10)
 integratedMacs <- FindClusters(integratedMacs, resolution = 0.5)
 integratedMacs <- RunTSNE(integratedMacs)
+```
+
+
+```{r}
 DimPlot(integratedMacs, reduction = "tsne", group.by = "group")
 ```
 
@@ -109,19 +113,94 @@ library(scRNAseq)
 ```{r}
 immGen <- ImmGenData()
 macsSC <- as.SingleCellExperiment(integratedMacs)
-macsSC <- logNormCounts(CD45SC)
+macsSC <- logNormCounts(macsSC)
 pred.macsSC <- SingleR(test = macsSC, ref = immGen, labels = immGen$label.main)
-pred.CD45SC
+pred.macsSC
 ```
 
 ```{r}
-table(pred.CD45SC$labels)
-integratedMacs[["SingleR.labels"]]<- pred.CD45SC$labels
-new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "Neutrophils", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
+table(pred.macsSC$labels)
+integratedMacs[["SingleR.labels"]]<- pred.macsSC$labels
+new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "justMacs", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
 names(new.cluster.ids) <- levels(integratedMacs)
 TSNEPlot(integratedMacs, label = TRUE, pt.size = 0.5, group.by = "SingleR.labels") + NoLegend()
 ```
 
+```{r}
+justMacs.seu <- integratedMacs[,integratedMacs$SingleR.labels == "Macrophages"]
+```
+
+```{r}
+justMacs.seu <- NormalizeData(justMacs.seu)
+justMacs.seu <- FindVariableFeatures(justMacs.seu, selection.method = "vst", nfeatures = 2000)
+all.genes2 <- rownames(justMacs.seu)
+justMacs.seu <- ScaleData(justMacs.seu, features = all.genes2)
+justMacs.seu <- RunPCA(justMacs.seu)
+
+# clustering the data
+justMacs.seu <- FindNeighbors(justMacs.seu, dims = 1:10)
+justMacs.seu <- FindClusters(justMacs.seu, resolution = 0.5)
+
+# non-linear dimensional reduction (UMAP or tSNE)
+justMacs.seu <- RunTSNE(justMacs.seu)
+
+```
+
+```{r}
+saveRDS(justMacs.seu, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/justMacs.rds")
+```
+
+```{r}
+justMacs.seu <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/justMacs.rds")
+```
+
+```{r}
+DimPlot(justMacs.seu, reduction = "tsne", group.by = "group")
+#HEEERRRE?
+#TSNEPlot(justMacs.seu, label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+```{r}
+justMacs.seu
+```
+
+```{r}
+groups <- sample(c("Healthy", "Bleo"), size = 11985, replace = TRUE)
+names(groups) <- colnames(justMacs.seu)
+justMacs.seu <- AddMetaData(object = justMacs.seu, metadata = groups, col.name = "group")
+obj.list <- SplitObject(justMacs.seu, split.by = "group")
+```
+```{r}
+TSNEPlot(justMacs.seu, label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+```{r}
+reference.list <- obj.list[c("Healthy","Bleo")]
+justMacs.anchors <- FindIntegrationAnchors(object.list = reference.list, dims = 1:10)
+```
+```{r}
+justMacs.integrated <- IntegrateData(anchorset = justMacs.anchors, dims = 1:10)
+```
+```{r}
+library(ggplot2)
+library(cowplot)
+DefaultAssay(justMacs.integrated) <- "integrated"
+justMacs.integrated <- ScaleData(justMacs.integrated, verbose = FALSE)
+justMacs.integrated <- RunPCA(justMacs.integrated, npcs = 30, verbose = FALSE)
+justMacs.integrated <- FindNeighbors(justMacs.integrated, dims = 1:10)
+justMacs.integrated <- FindClusters(justMacs.integrated, dims = 1:10)
+justMacs.integrated <- FindClusters(justMacs.integrated, resolution = 0.5)
+justMacs.integrated <- RunTSNE(justMacs.integrated, reduction = "pca", dims = 1:30)
+```
+
+
+```{r}
+p1 <- DimPlot(justMacs.integrated, reduction = "tsne", group.by = "group")
+plot_grid(p1)
+```
+```{r}
+saveRDS(justMacs.seu, file = "/Users/liammagee/Desktop/R stuff/tumorSet/justMacs.rds")
+```
 
 
 
